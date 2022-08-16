@@ -1,9 +1,5 @@
-.github/*
-.idea/*
-docker/*
 node_modules
-build/*
-landing/*
-server/*
+dist/*
+libs/*
 src/renderer/serviceWorker.js
 pdfjs/
