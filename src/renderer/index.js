@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
-import { BrowserRouter as Router } from 'react-router-dom';
+import { HashRouter as Router } from 'react-router-dom';
 import { createMuiTheme, ThemeProvider } from '@material-ui/core/styles';
 import configureStore from '../common/store/rootStore';
 import * as serviceWorker from './serviceWorker';
@@ -36,7 +36,7 @@ const theme = createMuiTheme({
 ReactDOM.render(
     <Provider store={configureStore()}>
         <ThemeProvider theme={theme}>
-            <Router basename={process.env.REACT_APP_BASE_NAME || ''}>
+            <Router>
                 <App />
             </Router>
         </ThemeProvider>
