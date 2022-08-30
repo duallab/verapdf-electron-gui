@@ -32,13 +32,14 @@ const profilesNames = {
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const profilesPath = path.join(
-    __dirname,
-    isDevelopment ? '..' : '..',
+    __dirname, 
+    '..',
     'libs/veraPDF/profiles/veraPDF-validation-profiles-integration/PDF_UA'
 );
 let job = {};
+let file = {};
 
-require('dotenv').config({ path: path.join(__dirname, isDevelopment ? '..' : '..', '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const createWindow = () => {
     let width, height;
@@ -83,6 +84,7 @@ app.on('web-contents-created', (e, contents) => {
     if (contents.getType() === 'window') {
       contents.on('will-navigate', (e, s) => {
         job = {};
+        file = {};
       });
       contents.setWindowOpenHandler((details) => {
         if (!details.url.includes('localhost') && !details.url.includes('file:///')) 
@@ -173,11 +175,23 @@ ipcMain.on('create-job', (event, args) => {
     });
 });
 
-ipcMain.on('upload-file', (event, path) => {
-    if(typeof path === 'string') {
-        fs.access(path, err => {
+ipcMain.on('upload-file', (event, filePath) => {
+    if(typeof filePath === 'string') {
+        fs.access(filePath, err => {
             if (!err) {
-                event.sender.send('upload-file-result', { file: { id: path } });
+                const id = uuidv1();
+                const newFilePath = path.resolve(__dirname, '..', 'libs', `${id}.pdf`);
+                fs.copyFile(filePath, newFilePath, err => {
+                    if (!err) {
+                        file = { tempPath: newFilePath, realPath: filePath };
+                        event.sender.send('upload-file-result', { file: { id } });
+                    } else {
+                        event.sender.send(
+                            'upload-file-result', 
+                            { error: new Error('Some error occurred while preparing the file') }
+                        );
+                    }
+                });
             } else {
                 event.sender.send('upload-file-result', { error: new Error('Can\'t find such file') });
             }
@@ -198,21 +212,25 @@ ipcMain.on('upload-job', (event, j) => {
 });
 
 ipcMain.on('execute-job', (event, id) => {
-    if (job.id === id) {
-        try {
+    try {
+        if (job.id === id && job.tasks[0].fileId === path.basename(file.tempPath, '.pdf')) {
             let reportText = '', errorText = '';
+            const constFile = { ...file };
             job.status = JOB_STATUS.PROCESSING;
             job.tasks[0].status = TASK_STATUS.PROCESSING;
             const reportData = spawn(
                 process.platform === 'linux' ? './verapdf' : 'verapdf.bat',
-                ['-p', job.profile, '--format', 'json', job.tasks[0].fileId],
-                { cwd: path.resolve(__dirname, isDevelopment ? '..' : '..', 'libs/veraPDF') },
+                ['-p', job.profile, '--format', 'json', constFile.tempPath],
+                { cwd: path.resolve(__dirname, '..', 'libs/veraPDF') },
             );
 
             reportData.stdout.on('data', data => {
                 reportText += (data ?? '').toString();
             });
             reportData.stdout.on('end', () => {
+                console.log(constFile);
+                reportText = reportText.replaceAll(constFile.tempPath, constFile.realPath);
+                fs.rm(constFile.tempPath, () => {});
                 if (job.id === id) {
                     if (reportText !== '') {
                         job.status = JOB_STATUS.FINISHED;
@@ -226,6 +244,7 @@ ipcMain.on('execute-job', (event, id) => {
                 errorText += (data ?? '').toString();
             });
             reportData.stderr.on('end', () => {
+                errorText = errorText.replaceAll(constFile.tempPath, constFile.realPath);
                 if (job.id === id) {
                     if (errorText !== '' && reportText === '') {
                         job.status = JOB_STATUS.ERROR;
@@ -237,18 +256,23 @@ ipcMain.on('execute-job', (event, id) => {
                 }
             });
             reportData.on('error', err => {
+                const errorMessage = err.message.replaceAll(constFile.tempPath, constFile.realPath);
+                fs.rm(constFile.tempPath, () => {});
                 job.status = JOB_STATUS.ERROR;
                 job.tasks[0].status = TASK_STATUS.ERROR;
-                job.tasks[0].errorMessage = err.message;
+                job.tasks[0].errorMessage = errorMessage;
             });
 
             event.sender.send('execute-job-result', { job });
-        } catch (err) {
-            event.sender.send('execute-job-result', err);
         }
-    } else {
-        event.sender.send('execute-job-result', { error: new Error('Can\'t find such job') });
-    }
+        else {
+            event.sender.send('execute-job-result', { 
+                error: new Error(`Can't find such ${job.id === id ? 'file' : 'job'}`) 
+            });
+        } 
+    } catch (err) {
+        event.sender.send('execute-job-result', err);
+    } 
 });
 
 ipcMain.on('get-file-content', (event, id) => {
