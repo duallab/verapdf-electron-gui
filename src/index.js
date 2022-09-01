@@ -228,7 +228,6 @@ ipcMain.on('execute-job', (event, id) => {
                 reportText += (data ?? '').toString();
             });
             reportData.stdout.on('end', () => {
-                console.log(constFile);
                 reportText = reportText.replaceAll(constFile.tempPath, constFile.realPath);
                 fs.rm(constFile.tempPath, () => {});
                 if (job.id === id) {
