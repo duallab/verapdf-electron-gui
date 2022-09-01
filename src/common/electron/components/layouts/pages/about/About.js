@@ -56,7 +56,7 @@ export default class AboutElectron extends React.Component {
                     </button>
                 </section>
                 <section
-                    align="center"
+                    align="left"
                     className="warnings"
                     style={{
                         display: this.state.visible ? 'block' : 'none',
@@ -64,8 +64,8 @@ export default class AboutElectron extends React.Component {
                         wordWrap: 'break-word',
                     }}
                 >
-                    <h3>{this.state.warnings ? 'Warnings!!!' : 'No warnings found'}</h3>
-                    <div>{this.state.warnings}</div>
+                    <h3 align="center">{this.state.warnings ? 'Warnings' : 'No warnings found'}</h3>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{this.state.warnings}</div>
                 </section>
             </>
         );
