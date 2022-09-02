@@ -219,7 +219,7 @@ ipcMain.on('execute-job', (event, id) => {
             job.status = JOB_STATUS.PROCESSING;
             job.tasks[0].status = TASK_STATUS.PROCESSING;
             const reportData = spawn(
-                process.platform === 'linux' ? './verapdf' : 'verapdf.bat',
+                process.platform === 'win32' ? 'verapdf.bat' : './verapdf',
                 ['-p', job.profile, '--format', 'json', constFile.tempPath],
                 { cwd: path.resolve(__dirname, '..', 'libs/veraPDF') },
             );
