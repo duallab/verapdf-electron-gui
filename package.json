@@ -3,7 +3,7 @@
   "version": "0.0.4",
   "license": "MIT",
   "engines": {
-    "node": ">=12 <16"
+    "node": ">= 16"
   },
   "homepage": "https://github.com/duallab/verapdf-electron",
   "author": {
@@ -131,7 +131,7 @@
     "copy-webpack-plugin": "6.0.1",
     "del-cli": "^4.0.1",
     "electron": "20.1.1",
-    "electron-builder": "23.0.1",
+    "electron-builder": "23.3.3",
     "electron-webpack": "2.8.2",
     "electron-webpack-eslint": "5.1.0",
     "enzyme": "3.11.0",
