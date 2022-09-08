@@ -12,13 +12,16 @@ export default class AboutElectron extends React.Component {
         this.state = { md: null, error: null, visible: false };
     }
 
+    openLinkEvent(e) {
+        e.preventDefault();
+        shell.openExternal(e.target.href);
+    }
+
     componentDidUpdate() {
         if (this.state.md) {
             document.querySelectorAll('.react-md a')?.forEach(a => {
-                a.addEventListener('click', e => {
-                    e.preventDefault();
-                    shell.openExternal(e.target.href);
-                });
+                a.removeEventListener('click', this.openLinkEvent);
+                a.addEventListener('click', this.openLinkEvent);
             });
         }
     }

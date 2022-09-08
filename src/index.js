@@ -219,7 +219,7 @@ ipcMain.on('execute-job', (event, id) => {
             job.status = JOB_STATUS.PROCESSING;
             job.tasks[0].status = TASK_STATUS.PROCESSING;
             const reportData = spawn(
-                process.platform === 'linux' ? './verapdf' : 'verapdf.bat',
+                process.platform === 'win32' ? 'verapdf.bat' : './verapdf',
                 ['-p', job.profile, '--format', 'json', constFile.tempPath],
                 { cwd: path.resolve(__dirname, '..', 'libs/veraPDF') },
             );
@@ -228,14 +228,26 @@ ipcMain.on('execute-job', (event, id) => {
                 reportText += (data ?? '').toString();
             });
             reportData.stdout.on('end', () => {
-                reportText = reportText.replaceAll(constFile.tempPath, constFile.realPath);
                 fs.rm(constFile.tempPath, () => {});
-                if (job.id === id) {
-                    if (reportText !== '') {
-                        job.status = JOB_STATUS.FINISHED;
-                        job.tasks[0].status = TASK_STATUS.FINISHED;
-                        job.tasks[0].validationResultId = job.id;
-                        job.fileContent = reportText;
+                if (job.id === id) {                    
+                    reportText = reportText.replaceAll(constFile.tempPath, constFile.realPath);
+                    try {
+                        const jobs = JSON.parse(reportText).report.jobs;
+                        if (jobs.length === 0 || !jobs[0].validationResult) {
+                            job.status = JOB_STATUS.ERROR;
+                            job.tasks[0].status = TASK_STATUS.ERROR;
+                            job.tasks[0].errorMessage = jobs[0]?.taskResult?.exception.message 
+                                || 'No validation result';
+                        } else {
+                            job.status = JOB_STATUS.FINISHED;
+                            job.tasks[0].status = TASK_STATUS.FINISHED;
+                            job.tasks[0].validationResultId = job.id;
+                            job.fileContent = jobs[0].validationResult;
+                        }
+                    } catch(error) {
+                        job.status = JOB_STATUS.ERROR;
+                        job.tasks[0].status = TASK_STATUS.ERROR;
+                        job.tasks[0].errorMessage = error.message || error;
                     }
                 }
             });
@@ -243,15 +255,9 @@ ipcMain.on('execute-job', (event, id) => {
                 errorText += (data ?? '').toString();
             });
             reportData.stderr.on('end', () => {
-                errorText = errorText.replaceAll(constFile.tempPath, constFile.realPath);
                 if (job.id === id) {
-                    if (errorText !== '' && reportText === '') {
-                        job.status = JOB_STATUS.ERROR;
-                        job.tasks[0].status = TASK_STATUS.ERROR;
-                        job.tasks[0].errorMessage = errorText;
-                    } else {
-                        job.tasks[0].warningMessage = errorText;
-                    }
+                    errorText = errorText.replaceAll(constFile.tempPath, constFile.realPath);
+                    job.tasks[0].warningMessage = errorText;
                 }
             });
             reportData.on('error', err => {
@@ -275,16 +281,11 @@ ipcMain.on('execute-job', (event, id) => {
 });
 
 ipcMain.on('get-file-content', (event, id) => {
-    if (job.id === id && !!job.fileContent) {
-        try {
-            const jobs = JSON.parse(job.fileContent)?.report?.jobs;
-            if (!jobs || jobs.length === 0 || !jobs[0].validationResult) {
-                event.sender.send('get-file-content-result', { error: new Error(jobs[0]?.taskResult?.exceptionMessage || 'No validation result') });
-            } else {
-                event.sender.send('get-file-content-result', { fileContent: jobs[0].validationResult });
-            }
-        } catch(error) {
-            event.sender.send('get-file-content-result', { error });
+    if (job.id === id) {
+        if (job.fileContent) {                
+            event.sender.send('get-file-content-result', { fileContent: job.fileContent });
+        } else {
+            event.sender.send('get-file-content-result', { error: new Error(job.errorMessage) });
         }
     } else {
         event.sender.send('get-file-content-result', { error: new Error('Can\'t find such file content') });
