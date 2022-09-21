@@ -69,10 +69,11 @@ const createWindow = () => {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
+            zoomFactor,
         },
     });
     win.once('ready-to-show', () => {
-        win.webContents.setZoomFactor(zoomFactor);
+        win.reload();
         win.show();
     })
 

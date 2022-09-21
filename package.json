@@ -86,7 +86,7 @@
       }
     ]
   },
-  "verapdf_version": "1.21.0",
+  "verapdf_version": "1.23.0",
   "babel": {
     "presets": [
       "@babel/env",
