@@ -73,6 +73,7 @@ const createWindow = () => {
         },
     });
     win.once('ready-to-show', () => {
+        win.webContents.setZoomFactor(zoomFactor);
         win.reload();
         win.show();
     })

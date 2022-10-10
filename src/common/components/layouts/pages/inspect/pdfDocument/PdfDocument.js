@@ -6,9 +6,12 @@ import _ from 'lodash';
 
 import { getPdfFiles } from '../../../../../store/pdfFiles/selectors';
 import { getRuleSummaries } from '../../../../../store/job/result/selectors';
-import { convertContextToPath, findAllMcid } from '../../../../../services/pdfService';
+import { convertContextToPath, findAllMcid, getCheckId } from '../../../../../services/pdfService';
 import { getPage } from '../../../../../store/application/selectors';
 import { setNumPages, setPage } from '../../../../../store/application/actions';
+
+import Alert from '@material-ui/lab/Alert';
+import Close from '@material-ui/icons/Close';
 
 import './PdfDocument.scss';
 
@@ -31,6 +34,8 @@ PdfDocument.propTypes = {
     setPdfName: PropTypes.func.isRequired,
     onPageChange: PropTypes.func.isRequired,
     setNumPages: PropTypes.func.isRequired,
+    onWarning: PropTypes.func,
+    warningMessage: PropTypes.string,
 };
 
 function getPageFromErrorPlace(context, structureTree) {
@@ -138,12 +143,11 @@ function PdfDocument(props) {
                                 }
                             }
                         }
+                        const checkId = getCheckId(check);
                         newMapOfErrors[`${index}:${checkIndex}:${check.location || check.context}`] = {
                             pageIndex,
                             location: check.location || check.context,
-                            groupId: check.errorArguments[2]
-                                ? `${summary.clause}-${summary.testNumber}-${check.errorArguments[2]}`
-                                : null,
+                            groupId: checkId ? `${summary.clause}-${summary.testNumber}-${checkId}` : null,
                         };
                     });
                 });
@@ -166,18 +170,27 @@ function PdfDocument(props) {
         [props]
     );
     return (
-        <PdfViewer
-            file={props.file}
-            scale={parseFloat(props.scale)}
-            showAllPages
-            externalLinkTarget="_blank"
-            onLoadSuccess={onDocumentReady}
-            activeBboxIndex={activeBboxIndex}
-            onBboxClick={data => onBboxSelect(data)}
-            bboxes={bboxes}
-            page={props.page}
-            onPageChange={props.onPageChange}
-        />
+        <div className="pdf-viewer__wrapper">
+            {props.warningMessage && (
+                <Alert severity="warning">
+                    {props.warningMessage}
+                    <Close onClick={() => props.onWarning(null)} />
+                </Alert>
+            )}
+            <PdfViewer
+                file={props.file}
+                scale={parseFloat(props.scale)}
+                showAllPages
+                externalLinkTarget="_blank"
+                onLoadSuccess={onDocumentReady}
+                activeBboxIndex={activeBboxIndex}
+                onBboxClick={data => onBboxSelect(data)}
+                bboxes={bboxes}
+                page={props.page}
+                onPageChange={props.onPageChange}
+                onWarning={props.onWarning}
+            />
+        </div>
     );
 }
 
