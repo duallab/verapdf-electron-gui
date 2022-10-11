@@ -6,3 +6,36 @@
 .pdf-page {
   margin-bottom: 7px;
 }
+
+.pdf-viewer__wrapper {
+  position: relative;
+  overflow: auto;
+
+  .MuiAlert-root {
+    z-index: 5000;
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 40%;
+    min-width: 300px;
+
+    .MuiAlert-message {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: calc(100% - 30px);
+
+      .MuiSvgIcon-root {
+        width: 20px;
+        height: 20px;
+        opacity: .7;
+        cursor: pointer;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+  }
+}

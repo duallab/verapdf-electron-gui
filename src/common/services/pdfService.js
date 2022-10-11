@@ -58,6 +58,14 @@ function convertContextToPath(errorContext = '') {
                 }
             });
             return path;
+        } else if (contextString.includes('pages') && !contextString.includes('annots')) {
+            let path = {};
+            contextString.split('/').forEach(nodeString => {
+                if (nodeString.includes('page')) {
+                    path.pageNumber = parseInt(nodeString.split(/[[\]]/)[1], 10);
+                }
+            });
+            return path;
         } else if (contextString.includes('annots')) {
             let path = {};
             contextString.split('/').forEach(nodeString => {
@@ -244,6 +252,14 @@ const calculateStokeColor = (pageNumber, bbox) => {
     }
 };
 
+const getCheckId = check => {
+    return check.errorArguments[2] &&
+        check.errorArguments[2].includes('id:') &&
+        !isNaN(+check.errorArguments[2].slice(3))
+        ? check.errorArguments[2].slice(3)
+        : null;
+};
+
 export {
     COLOR,
     convertContextToPath,
@@ -254,4 +270,5 @@ export {
     calculateBboxFromJSON,
     calculateStokeColor,
     convertRectToBbox,
+    getCheckId,
 };

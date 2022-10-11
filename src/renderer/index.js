@@ -8,6 +8,9 @@ import * as serviceWorker from './serviceWorker';
 import App from '../common/components/App';
 import './index.scss';
 
+const zoomFactor = 1;
+require('electron').webFrame.setZoomFactor(zoomFactor);
+
 const theme = createMuiTheme({
     palette: {
         primary: {

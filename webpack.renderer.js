@@ -19,9 +19,20 @@ module.exports = {
       },
       {
         test: /\.m?js$/,
-        exclude: /(node_modules|bower_components)/,
+        exclude: [
+          {
+              test: path.resolve(__dirname, 'node_modules'),
+              exclude: [
+                path.resolve(__dirname, 'node_modules/verapdf-js-viewer'),
+                path.resolve(__dirname, 'node_modules/pdfjs-dist')
+              ]
+          }
+        ],
         use: {
-          loader: 'babel-loader'
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env']
+          }
         }
       },
     ],
