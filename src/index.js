@@ -38,22 +38,26 @@ const profilesPath = path.join(
 );
 let job = {};
 let file = {};
+let width, height;
 
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const createWindow = () => {
-    let width, height;
-    const factor = screen.getPrimaryDisplay().scaleFactor;
-    if (factor === 1) {
-        width = 1080;
-        height = 800;
-    } else if (factor >= 1.25 && factor < 1.5) {
-        width = 865;
-        height = 700;
+    const { size, scaleFactor } = screen.getPrimaryDisplay();
+
+    if (scaleFactor <= 1) {
+        width = size.width / 2;
+        height = size.height / 1.5;
+    } else if (scaleFactor >= 1.25 && scaleFactor < 1.5) {
+        width = size.width / 1.5;
+        height = size.height / 1.25;
     } else {
-        width = 740;
-        height = 600;
+        width = size.width / 1.25;
+        height = size.height / 1.1;
     }
+
+    width = Math.round(width); 
+    height = Math.round(height);
 
     const win = new BrowserWindow({
         width,
@@ -63,9 +67,12 @@ const createWindow = () => {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
-            zoomFactor: 1.0 / factor,
         },
     });
+
+    win.once('ready-to-show', () => {
+        win.show();
+    })
 
     if (isDevelopment) win.webContents.openDevTools();
 
@@ -91,11 +98,15 @@ app.on('web-contents-created', (e, contents) => {
             shell.openExternal(details.url);
         else {
             const win = new BrowserWindow({
+                width,
+                height,
+                minWidth: width,
+                minHeight: height,
                 webPreferences: {
                     nodeIntegration: true,
                     contextIsolation: false,
                 }
-            });    
+            });
             Menu.setApplicationMenu(null);
             win.loadURL(details.url);
         }
