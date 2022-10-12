@@ -23,7 +23,8 @@ module.exports = {
           {
               test: path.resolve(__dirname, 'node_modules'),
               exclude: [
-                path.resolve(__dirname, 'node_modules/verapdf-js-viewer'),
+                path.resolve(__dirname, 'node_modules/verapdf-js-viewer/node_modules/react-pdf/node_modules/pdfjs-dist'),
+                path.resolve(__dirname, 'node_modules/verapdf-js-viewer/node_modules/pdfjs-dist'),
                 path.resolve(__dirname, 'node_modules/pdfjs-dist')
               ]
           }
