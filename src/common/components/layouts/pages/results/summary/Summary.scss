@@ -7,12 +7,13 @@
   margin: 0 auto;
   padding: 0 20px;
 
-  h2 {
+  p {
     margin-bottom: 0;
   }
 
   &__chart {
     @include centered-column;
+    position: relative;
     height: 300px;
 
     // Remove chart tooltip flickering
@@ -61,6 +62,22 @@
           color: $color-primary;
         }
       }
+    }
+  }
+
+  .error-section {
+    @include centered-column;
+    margin: 30px;
+    svg {
+      font-size: 130px;
+      margin-bottom: 15px;
+    }
+
+    &_cancelled svg {
+      color: $color-black--35;
+    }
+    &_timeout svg {
+      color: $color-error;
     }
   }
 }

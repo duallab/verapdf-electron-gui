@@ -218,11 +218,11 @@
 				"DESCRIPTION": "The number of columns in a <Table> structure element does not match the number of rows of the visual representation of this table"
 			},
 			"38": {
-				"SUMMARY": "Invalid row span a table cell",
+				"SUMMARY": "Invalid row span of a table cell",
 				"DESCRIPTION": "The row span of a <TD> or <TH> structure element (table cell) does not match the row span of the visual representation of this table cell"
 			},
 			"39": {
-				"SUMMARY": "Invalid column span a table cell",
+				"SUMMARY": "Invalid column span of a table cell",
 				"DESCRIPTION": "The column span of a <TD> or <TH> structure element (table cell) does not match the column span of the visual representation of this table cell"
 			},
 			"40": {
@@ -248,6 +248,46 @@
 			"45": {
 				"SUMMARY": "Invalid table header",
 				"DESCRIPTION": "This structure element is recognized as <TD> (regular table cell), but is tagged as <TH> (table header)"
+			},
+			"46": {
+				"SUMMARY": "TOC item text is not found in the document",
+				"DESCRIPTION": "Table of Content item text does not match any heading in the document"
+			},
+			"47": {
+				"SUMMARY": "TOC item is not found on the destination page",
+				"DESCRIPTION": "Table of Content item text is not found on the destination page"
+			},
+			"48": {
+				"SUMMARY": "TOC item has no destination link",
+				"DESCRIPTION": "Table of Content item does not have an interactive link to the destination page"
+			},
+			"49": {
+				"SUMMARY": "Incorrect page number in TOC item",
+				"DESCRIPTION": "Table of Content item has invalid page number (label)"
+			},
+			"50": {
+				"SUMMARY": "Inconsistent TOC item numbering",
+				"DESCRIPTION": "Table of Content items numbering is inconsistent / does not follow any pattern"
+			},
+			"51": {
+				"SUMMARY": "Single List inside List",
+				"DESCRIPTION": "<L> (List) element has another <L> element as its only immediate child"
+			},
+			"52": {
+				"SUMMARY": "Several List items are tagged as one",
+				"DESCRIPTION": "Several list items are tagged as a single <LI> element"
+			},
+			"53": {
+				"SUMMARY": "Note is tagged as a Span",
+				"DESCRIPTION": "A part of the text is recognized as a Note, but tagged as <Span> element"
+			},
+			"54": {
+				"SUMMARY": "Note is tagged as a Paragraph",
+				"DESCRIPTION": "A part of the text is recognized as a Note, but tagged as <P> element"
+			},
+			"55": {
+				"SUMMARY": "The heading is a single child",
+				"DESCRIPTION": "The heading is a single child of its ancestor structure element and is not grouped with the related content"
 			}
 		}
 	},
@@ -303,9 +343,9 @@
 				"SUMMARY": "Viewer preferences miss the requirement to use the document title in the title bar",
 				"DESCRIPTION": "The document catalog dictionary shall include a ViewerPreferences dictionary containing a DisplayDocTitle key, whose value shall be true."
 			},
-			"13": {
-				"SUMMARY": "The structure type and attributes of a structure element are not semantically appropriate for the structure element.",
-				"DESCRIPTION": "The structure type and attributes of a structure element shall be semantically appropriate."
+			"11": {
+				"SUMMARY": "Document is not tagged",
+				"DESCRIPTION": "Document root contains no structure tree, which makes any real content in the document inaccessible"
 			}
 		},
 		"7.2": {
@@ -314,32 +354,32 @@
 				"DESCRIPTION": "Natural language in the Outline entries shall be determined"
 			},
 			"3": {
-				"SUMMARY": "Table contains more than one Caption, or Table contains a Caption not as its first or last kid",
-				"DESCRIPTION": "Table element may contain a Caption element as its first or last kid"
+				"SUMMARY": "Table contains forbidden elements",
+				"DESCRIPTION": "Table element may contain only TR, THead, TBody, TFoot and Caption elements"
 			},
 			"4": {
 				"SUMMARY": "TR (table row) found outside of the Table context",
-				"DESCRIPTION": "TR element should contained in Table, THead, TBody or TFoot element"
+				"DESCRIPTION": "TR element should be contained in Table, THead, TBody or TFoot element"
 			},
 			"5": {
 				"SUMMARY": "THead (table header) found outside of the Table context",
-				"DESCRIPTION": "THead element should contained in Table element"
+				"DESCRIPTION": "THead element should be contained in Table element"
 			},
 			"6": {
 				"SUMMARY": "TBody (table body) found outside of the Table context",
-				"DESCRIPTION": "TBody element should contained in Table element"
+				"DESCRIPTION": "TBody element should be contained in Table element"
 			},
 			"7": {
 				"SUMMARY": "TFoot (table footer) found outside of the Table context",
-				"DESCRIPTION": "TFoot element should contained in Table element"
+				"DESCRIPTION": "TFoot element should be contained in Table element"
 			},
 			"8": {
 				"SUMMARY": "TH (table header cell) found outside of the Table row context",
-				"DESCRIPTION": "TH element should contained in TR element"
+				"DESCRIPTION": "TH element should be contained in TR element"
 			},
 			"9": {
 				"SUMMARY": "TD (table cell) found outside of the Table row context",
-				"DESCRIPTION": "TD element should contained in TR element"
+				"DESCRIPTION": "TD element should be contained in TR element"
 			},
 			"10": {
 				"SUMMARY": "TR (table row) may contain only table cells (TH or TD elements)",
@@ -362,20 +402,24 @@
 				"DESCRIPTION": "If Table element contains THead kid, Table element should contain one or more TBody kids"
 			},
 			"15": {
-				"SUMMARY": "Irregular table found",
-				"DESCRIPTION": "Tables shall be regular, that is have the same number of cells in each row after accounting for rowspan and colspan attributes."
+				"SUMMARY": "Irregular table found. Table cell has intersection with other cells",
+				"DESCRIPTION": "Tables shall be regular. Table cell shall not have intersection with other cells"
+			},
+			"16": {
+				"SUMMARY": "Table contains a Caption not as its first or last kid",
+				"DESCRIPTION": "Table element may contain a Caption element as its first or last kid"
 			},
 			"17": {
 				"SUMMARY": "List item is found outside List context",
-				"DESCRIPTION": "LI element should contained in L element"
+				"DESCRIPTION": "LI element should be contained in L element"
 			},
 			"18": {
 				"SUMMARY": "List item text found outside List item",
-				"DESCRIPTION": "LBody element should contained in LI element"
+				"DESCRIPTION": "LBody element should be contained in LI element"
 			},
 			"19": {
 				"SUMMARY": "List contains forbidden elements",
-				"DESCRIPTION": "L element may contain a Caption element as its first kid and L element may contain only L, LI and Caption elements"
+				"DESCRIPTION": "L element may contain only L, LI and Caption elements"
 			},
 			"20": {
 				"SUMMARY": "List item may contain only list label followed by the item text",
@@ -403,11 +447,15 @@
 			},
 			"26": {
 				"SUMMARY": "TOC item is found outside the TOC context",
-				"DESCRIPTION": "TOCI element should contained in TOC element"
+				"DESCRIPTION": "TOCI element should be contained in TOC element"
 			},
 			"27": {
-				"SUMMARY": "TOC has more than one Caption, or Caption is not a first or last kid of the TOC",
-				"DESCRIPTION": "TOC element may contain a Caption element as its first kid and TOC element may contain only TOC, TOCI and Caption elements"
+				"SUMMARY": "TOC contains forbidden elements",
+				"DESCRIPTION": "TOC element may contain only TOC, TOCI and Caption elements"
+			},
+			"28": {
+				"SUMMARY": "Caption is not a first kid of the TOC",
+				"DESCRIPTION": "TOC element may contain a Caption element as its first kid"
 			},
 			"29": {
 				"SUMMARY": "Invalid Language identifier",
@@ -444,6 +492,26 @@
 			"38": {
 				"SUMMARY": "Table footer contains elements other than Table rows",
 				"DESCRIPTION": "TFoot element may contain only TR elements"
+			},
+			"39": {
+				"SUMMARY": "Table contains more than one Caption",
+				"DESCRIPTION": "Table element may contain only one Caption element"
+			},
+			"40": {
+				"SUMMARY": "Caption is not a first kid of the List",
+				"DESCRIPTION": "L element may contain a Caption element as its first kid"
+			},
+			"41": {
+				"SUMMARY": "Irregular table found.",
+				"DESCRIPTION": "Tables shall be regular, that is have the same number of cells in each row after accounting for rowspan and colspan attributes."
+			},
+			"42": {
+				"SUMMARY": "Irregular table found.",
+				"DESCRIPTION": "Tables shall be regular, that is have the same number of cells in each row after accounting for rowspan and colspan attributes."
+			},
+			"43": {
+				"SUMMARY": "Irregular table found.",
+				"DESCRIPTION": "Tables shall be regular, that is have the same number of cells in each row after accounting for rowspan and colspan attributes."
 			}
 		},
 		"7.3": {
@@ -474,7 +542,11 @@
 		},
 		"7.5": {
 			"1": {
-				"SUMMARY": "In a table not organized with Headers attributes and IDs, a TH cell does not contain a Scope attribute",
+				"SUMMARY": "TD does not contain Headers attribute, and Headers for this table cell cannot be determined",
+				"DESCRIPTION": "If the table's structure is not determinable via Headers and IDs, then structure elements of type TH shall have a Scope attribute"
+			},
+			"2": {
+				"SUMMARY": "TD references undefined Header(s), and Headers for this table cell cannot be determined",
 				"DESCRIPTION": "If the table's structure is not determinable via Headers and IDs, then structure elements of type TH shall have a Scope attribute"
 			}
 		},

@@ -1,9 +1,10 @@
 @import "../../../variables";
+@import "../../../mixins";
 
 .job-status {
   min-height: $min-content-height;
 
-  .progress,
+  .progress-section,
   .error {
     margin: 50px 0;
   }
@@ -18,5 +19,9 @@
     &__details {
       margin: 5px 0;
     }
+  }
+
+  .processing-controls {
+    @include flex-right-aligned;
   }
 }

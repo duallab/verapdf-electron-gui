@@ -1,0 +1,18 @@
+@import '../../../../variables';
+
+.summary-structure {
+  grid-area: structure;
+  background: $bg-color--primary;
+  box-shadow: $box-shadow--basic;
+  height: 100%;
+  overflow: hidden;
+}
+
+#summary-structure-subheader {
+  display: flex;
+  justify-content: space-between;
+  overflow: auto;
+  font-weight: $font-weight-bold;
+  white-space: nowrap;
+}
+  

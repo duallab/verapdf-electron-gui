@@ -8,13 +8,39 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import { useTheme } from '@material-ui/core/styles';
 import { Chart } from 'react-google-charts';
 import FiberManualRecordIcon from '@material-ui/icons/FiberManualRecord';
+import HighlightOffIcon from '@material-ui/icons/HighlightOff';
+import ErrorOutline from '@material-ui/icons/ErrorOutline';
+import FileName from '../../../../shared/fileName/FileName';
+import { OptionShape } from '../../../../shared/select/Select';
 
-import { getFileDescriptor } from '../../../../../store/pdfFiles/selectors';
-import { getResultSummary } from '../../../../../store/job/result/selectors';
+import { getFileName } from '../../../../../store/pdfFiles/selectors';
+import { getFileNameLink } from '../../../../../store/pdfLink/selectors';
+import { getResultSummary, getJobEndStatus } from '../../../../../store/job/result/selectors';
+import { getProfileOptions } from '../../../../../store/validationProfiles/selectors';
+import { isFileUploadMode } from '../../../../../store/application/selectors';
 
 import './Summary.scss';
 
-function Summary({ fileInfo, resultSummary }) {
+const JOB_END_STATUS = {
+    CANCELLED: 'cancelled',
+    TIMEOUT: 'timeout',
+};
+
+function Summary({ fileName, profiles, selectedProfile, resultSummary, jobEndStatus }) {
+    return (
+        <Paper className="summary">
+            <FileName title={fileName} component="h2" size="max" />
+            <p>{profiles.filter(({ value }) => value === selectedProfile)[0].label}</p>
+            {jobEndStatus === JOB_END_STATUS.CANCELLED && <CanceledSummary />}
+            {jobEndStatus === JOB_END_STATUS.TIMEOUT && <TimeoutSummary />}
+            {![JOB_END_STATUS.TIMEOUT, JOB_END_STATUS.CANCELLED].includes(jobEndStatus) && (
+                <ProcessedSummary resultSummary={resultSummary} />
+            )}
+        </Paper>
+    );
+}
+
+function ProcessedSummary({ resultSummary }) {
     const theme = useTheme();
     const [chartReady, setChartReady] = useState(false);
     const chartData = useMemo(() => buildChartData(resultSummary), [resultSummary]);
@@ -22,8 +48,7 @@ function Summary({ fileInfo, resultSummary }) {
     const chartEvents = useMemo(() => [{ eventName: 'ready', callback: () => setChartReady(true) }], [setChartReady]);
     const compliancePercent = useMemo(() => calculateCompliance(resultSummary), [resultSummary]);
     return (
-        <Paper className="summary">
-            <h2>{fileInfo.name}</h2>
+        <>
             <section className="summary__chart">
                 <Chart
                     chartType="PieChart"
@@ -41,7 +66,25 @@ function Summary({ fileInfo, resultSummary }) {
                 <LegendItem value={resultSummary.passedChecks} label="checks passed" type="passed" />
                 <LegendItem value={resultSummary.failedChecks} label="errors" type="failed" />
             </ul>
-        </Paper>
+        </>
+    );
+}
+
+function CanceledSummary() {
+    return (
+        <div className="error-section error-section_cancelled">
+            <HighlightOffIcon />
+            Cancelled
+        </div>
+    );
+}
+
+function TimeoutSummary() {
+    return (
+        <div className="error-section error-section_timeout">
+            <ErrorOutline />
+            Timeout
+        </div>
     );
 }
 
@@ -90,23 +133,25 @@ function LegendItem({ label, value, type }) {
 }
 
 const SummaryInterface = PropTypes.shape({
-    passedChecks: PropTypes.number.isRequired,
-    failedChecks: PropTypes.number.isRequired,
-});
-
-const FileInfoInterface = PropTypes.shape({
-    name: PropTypes.string.isRequired,
+    passedChecks: PropTypes.number,
+    failedChecks: PropTypes.number,
 });
 
 Summary.propTypes = {
     resultSummary: SummaryInterface.isRequired,
-    fileInfo: FileInfoInterface.isRequired,
+    fileName: PropTypes.string.isRequired,
+    profiles: PropTypes.arrayOf(OptionShape).isRequired,
+    selectedProfile: PropTypes.string,
+    jobEndStatus: PropTypes.string,
 };
 
 function mapStateToProps(state) {
     return {
         resultSummary: getResultSummary(state),
-        fileInfo: getFileDescriptor(state),
+        fileName: isFileUploadMode(state) ? getFileName(state) : getFileNameLink(state),
+        profiles: getProfileOptions(state),
+        selectedProfile: state.jobSettings.profile,
+        jobEndStatus: getJobEndStatus(state),
     };
 }
 export default connect(mapStateToProps)(Summary);

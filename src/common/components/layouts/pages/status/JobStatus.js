@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { connect } from 'react-redux';
 import { Redirect, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
@@ -6,11 +6,20 @@ import _ from 'lodash';
 
 import AppPages from '../../../AppPages';
 import { JOB_STATUS } from '../../../../store/constants';
-import { getJobError, getJobStatus } from '../../../../store/job/selectors';
-import { getProgress } from '../../../../store/job/progress/selectors';
+import { getJobError, getJobProgress, getJobQueuePosition, getJobStatus } from '../../../../store/job/selectors';
+import { getProgress, isCancellingJob } from '../../../../store/job/progress/selectors';
+import { getFileName } from '../../../../store/pdfFiles/selectors';
+import { getFileNameLink } from '../../../../store/pdfLink/selectors';
 import { hasResult } from '../../../../store/job/result/selectors';
+import { isFileUploadMode } from '../../../../store/application/selectors';
 import Progress from '../../../shared/progress/Progress';
 import WizardStep from '../../wizardStep/WizardStep';
+import FileName from '../../../shared/fileName/FileName';
+import Button from '../../../shared/button/Button';
+import DropzoneWrapper from '../upload/dropzoneWrapper/DropzoneWrapper';
+import { cancelValidation } from '../../../../store/job/actions';
+import { resetOnFileUpload } from '../../../../store/application/actions';
+import { storeMode } from '../../../../store/pdfFiles/actions';
 
 import './JobStatus.scss';
 
@@ -37,6 +46,11 @@ export const STEPS = {
         complete: 'Job execution started.',
         errorDetails: errorMessage => `Failed to start job execution: ${errorMessage}`,
     },
+    JOB_WAITING: {
+        active: position => 'Waiting...' + (_.isNumber(position) ? `Position in queue: ${position + 1}` : ''),
+        complete: 'Job validation started.',
+        errorDetails: errorMessage => `Failed to start job validation: ${errorMessage}`,
+    },
     JOB_COMPLETE: {
         active: 'Validating...',
         complete: 'Validation complete.',
@@ -51,10 +65,34 @@ export const STEPS = {
     },
 };
 
-function JobStatus({ jobStatus, percentage, steps, errorMessage, complete }) {
+function JobStatus({
+    fileName,
+    jobStatus,
+    jobProgress,
+    jobQueuePosition,
+    percentage,
+    steps,
+    errorMessage,
+    complete,
+    onCancel,
+    onFileDrop,
+    cancellingJob,
+}) {
     const { id: jobId } = useParams();
 
+    const onDrop = useCallback(
+        async acceptedFiles => {
+            await onCancel();
+            storeMode(true);
+            onFileDrop(acceptedFiles[0]);
+        },
+        [onCancel, onFileDrop]
+    );
+
     switch (jobStatus) {
+        case undefined:
+            return <Redirect to={AppPages.LOADING} />;
+
         case JOB_STATUS.NOT_FOUND:
             return <Redirect to={AppPages.NOT_FOUND} />;
 
@@ -70,6 +108,7 @@ function JobStatus({ jobStatus, percentage, steps, errorMessage, complete }) {
                 </StatusPage>
             );
 
+        case JOB_STATUS.CANCELLED:
         case JOB_STATUS.FINISHED:
             if (complete) {
                 return <Redirect to={AppPages.RESULTS.url(jobId)} />;
@@ -78,9 +117,23 @@ function JobStatus({ jobStatus, percentage, steps, errorMessage, complete }) {
         // eslint-disable-next-line no-fallthrough
         default:
             return (
-                <StatusPage>
-                    <Progress percents={percentage} title={getProgressTitle(steps)} />
-                </StatusPage>
+                <DropzoneWrapper onFileDrop={onDrop}>
+                    <StatusPage>
+                        <FileName title={fileName} size="mid" />
+                        <Progress
+                            percents={percentage}
+                            title={getProgressTitle(steps, jobQueuePosition, cancellingJob)}
+                            summary={getProgressSummary(steps, jobQueuePosition, cancellingJob)}
+                            progress={!cancellingJob ? jobProgress : null}
+                        />
+                        <div className="processing-controls">
+                            {(jobStatus === JOB_STATUS.WAITING ||
+                                (jobStatus === JOB_STATUS.PROCESSING && !cancellingJob)) && (
+                                <Button onClick={onCancel}>Cancel validation</Button>
+                            )}
+                        </div>
+                    </StatusPage>
+                </DropzoneWrapper>
             );
     }
 }
@@ -93,16 +146,35 @@ function StatusPage({ children }) {
     );
 }
 
-function getProgressTitle(steps) {
-    return steps
+function getProgressSummary(steps, jobQueuePosition, cancellingJob) {
+    if (cancellingJob) {
+        return 'Cancelling...';
+    }
+    const lastStep = STEPS[steps[steps.length - 1].stepKey];
+    return typeof lastStep.active === 'function' ? lastStep.active(jobQueuePosition) : lastStep.active;
+}
+
+function getProgressTitle(steps, jobQueuePosition, cancellingJob) {
+    let title = _.chain(steps)
         .map(({ stepKey, completed }) => {
             if (completed) {
-                return '✓ ' + STEPS[stepKey].complete;
+                return STEPS[stepKey].complete ? '✓ ' + STEPS[stepKey].complete : null;
             } else {
-                return '● ' + STEPS[stepKey].active;
+                return (
+                    '● ' +
+                    (typeof STEPS[stepKey].active === 'function'
+                        ? STEPS[stepKey].active(jobQueuePosition)
+                        : STEPS[stepKey].active)
+                );
             }
         })
+        .filter(label => label)
+        .value()
         .join('\n');
+    if (cancellingJob) {
+        title += '\n● Cancelling...';
+    }
+    return title;
 }
 
 function getErrorInfo(steps, errorMessage) {
@@ -122,19 +194,46 @@ const StepShape = PropTypes.shape({
 });
 
 JobStatus.propTypes = {
+    fileName: PropTypes.string.isRequired,
     jobStatus: PropTypes.oneOf(_.values(JOB_STATUS)),
+    jobProgress: PropTypes.string,
+    jobQueuePosition: PropTypes.number,
     percentage: PropTypes.number.isRequired,
     steps: PropTypes.arrayOf(StepShape).isRequired,
     errorMessage: PropTypes.string,
     complete: PropTypes.bool,
+    isCancellingJob: PropTypes.bool,
+    onCancel: PropTypes.func.isRequired,
+    onFileDrop: PropTypes.func.isRequired,
 };
 
 function mapStateToProps(state) {
+    const fileName = isFileUploadMode(state) ? getFileName(state) : getFileNameLink(state);
     const { percentage, steps } = getProgress(state);
     const jobStatus = getJobStatus(state);
+    const jobProgress = getJobProgress(state);
+    const jobQueuePosition = getJobQueuePosition(state);
     const errorMessage = getJobError(state);
     const complete = hasResult(state);
-    return { jobStatus, percentage, steps, errorMessage, complete };
+    const cancellingJob = isCancellingJob(state);
+    return {
+        fileName,
+        jobStatus,
+        jobProgress,
+        jobQueuePosition,
+        percentage,
+        steps,
+        errorMessage,
+        complete,
+        cancellingJob,
+    };
 }
 
-export default connect(mapStateToProps)(JobStatus);
+const mapDispatchToProps = dispatch => {
+    return {
+        onCancel: async () => await dispatch(cancelValidation()),
+        onFileDrop: file => dispatch(resetOnFileUpload(file)),
+    };
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(JobStatus);

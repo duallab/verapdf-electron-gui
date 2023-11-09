@@ -1,8 +1,13 @@
-export const JOB_FILE = 'JOB_FILE';
+export const JOB_NEW_FILE = 'JOB_NEW_FILE';
+export const JOB_OLD_FILE = 'JOB_OLD_FILE';
+export const JOB_LINK = 'JOB_LINK';
+export const JOB_MODE = 'JOB_MODE';
 export const JOB_SETTINGS = 'JOB_SETTINGS';
 
 export const JOB_STATUS = {
     CREATED: 'CREATED',
+    WAITING: 'WAITING',
+    CANCELLED: 'CANCELLED',
     PROCESSING: 'PROCESSING',
     FINISHED: 'FINISHED',
     ERROR: 'ERROR',
@@ -12,6 +17,7 @@ export const JOB_STATUS = {
 export const TASK_STATUS = {
     CREATED: 'CREATED',
     QUEUED: 'QUEUED',
+    CANCELLED: 'CANCELLED',
     PROCESSING: 'PROCESSING',
     FINISHED: 'FINISHED',
     ERROR: 'ERROR',

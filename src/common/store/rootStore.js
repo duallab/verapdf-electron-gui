@@ -1,26 +1,47 @@
 import { createStore, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
 import rootReducer from './rootReducer';
-import { JOB_FILE, JOB_STATUS } from './constants';
-import { finishAppStartup } from './application/actions';
-import { updateServerStatus } from './serverInfo/actions';
+import { JOB_NEW_FILE, JOB_OLD_FILE, JOB_LINK, JOB_MODE, JOB_STATUS } from './constants';
+import { finishAppStartup, setFileUploadMode } from './application/actions';
+import { updateServerStatus, updateWorkerServiceStatus } from './serverInfo/actions';
 import { addPdfFile } from './pdfFiles/actions';
 import { updateProfiles } from './validationProfiles/actions';
 import { getFile } from '../services/pdfStorage';
 import { getJob } from '../services/jobService';
-import { setJob, validate, loadValidationResult } from './job/actions';
+import { setJob, validate, loadValidationResult, cancelValidation } from './job/actions';
+import { getJobStatus } from './job/selectors';
 import { getUnsavedFile } from './pdfFiles/selectors';
-import { isLocked } from './application/selectors';
+import { isFileUploadMode, isLocked } from './application/selectors';
+import { setLink } from './pdfLink/actions';
 
 export default function configureStore() {
     const store = createStore(rootReducer, applyMiddleware(thunk));
 
+    const isUploadMode = sessionStorage.getItem(JOB_MODE);
+    if (isUploadMode !== null) {
+        store.dispatch(setFileUploadMode(isUploadMode === 'true'));
+    }
+
     window.onbeforeunload = () => {
+        const jobStatus = getJobStatus(store.getState());
         // Show confirmation when we reload page while:
         // - selected PDF file is not saved for some reason (and thus cannot be restored)
         // - application is locked, e.g. when job creation was started but not yet complete (and thus cannot be restored)
-        if (getUnsavedFile(store.getState()) || isLocked(store.getState())) {
+        if (
+            (getUnsavedFile(store.getState()) && isFileUploadMode(store.getState())) ||
+            jobStatus === JOB_STATUS.WAITING ||
+            jobStatus === JOB_STATUS.PROCESSING ||
+            isLocked(store.getState())
+        ) {
             return '';
+        }
+    };
+
+    window.onunload = () => {
+        // Cancel job on tab close
+        const jobStatus = getJobStatus(store.getState());
+        if (jobStatus === JOB_STATUS.WAITING || jobStatus === JOB_STATUS.PROCESSING) {
+            store.dispatch(cancelValidation());
         }
     };
 
@@ -28,6 +49,22 @@ export default function configureStore() {
 
     // Check server availability
     store.dispatch(updateServerStatus());
+
+    //Update worker service status
+    store.dispatch(updateWorkerServiceStatus());
+
+    // Redirect to start screen if there is old file
+    const { PUBLIC_URL } = process.env;
+    const oldFileName = sessionStorage.getItem(JOB_OLD_FILE);
+    let location = window.location.pathname;
+    if (!PUBLIC_URL.endsWith('/')) {
+        location = location.replace(/\/$/, '');
+    }
+    if (oldFileName && location !== PUBLIC_URL && location !== `${PUBLIC_URL}/new-job/files`) {
+        // Redirect to start screen and hide Loading view
+        window.location.replace(PUBLIC_URL);
+        return;
+    }
 
     // Restore PDF file if there is any saved in DB
     const restoreFilesPromise = restoreFiles(store);
@@ -44,6 +81,11 @@ export default function configureStore() {
     // Get validationProfiles list
     store.dispatch(updateProfiles());
 
+    const link = sessionStorage.getItem(JOB_LINK);
+    if (link !== null) {
+        store.dispatch(setLink(link));
+    }
+
     if (startupPromises.length > 0) {
         Promise.all(startupPromises).then(() => {
             store.dispatch(finishAppStartup());
@@ -56,7 +98,7 @@ export default function configureStore() {
 }
 
 const restoreFiles = store => {
-    const fileName = sessionStorage.getItem(JOB_FILE);
+    const fileName = sessionStorage.getItem(JOB_NEW_FILE);
     if (!fileName) {
         return null;
     }
@@ -65,7 +107,7 @@ const restoreFiles = store => {
         if (file?.size) {
             store.dispatch(addPdfFile({ file, hasBackup: true }));
         } else {
-            sessionStorage.removeItem(JOB_FILE);
+            sessionStorage.removeItem(JOB_NEW_FILE);
         }
     });
 };
@@ -74,7 +116,7 @@ const restoreJob = (store, id, fileRestored) =>
     getJob(id)
         .then(async job => {
             store.dispatch(setJob(job));
-            if (job.status !== JOB_STATUS.FINISHED) {
+            if (job.status !== JOB_STATUS.FINISHED && job.status !== JOB_STATUS.CANCELLED) {
                 const completedSteps = ['JOB_CREATE'];
                 if (job.tasks && job.tasks.length > 0) {
                     // TODO: also restore file id or even the whole file object (in case there is no restored from IndexedDB or the job references different file)
@@ -87,9 +129,13 @@ const restoreJob = (store, id, fileRestored) =>
                         throw Error('File cannot be restored');
                     }
                 }
-                if (job.status === JOB_STATUS.PROCESSING) {
-                    // Job already started
+                if (job.status === JOB_STATUS.WAITING) {
+                    // Job has already started
                     completedSteps.push('JOB_EXECUTE');
+                }
+                if (job.status === JOB_STATUS.PROCESSING) {
+                    // Job processing has already started
+                    completedSteps.push('JOB_EXECUTE', 'JOB_WAITING');
                 }
                 store.dispatch(validate(completedSteps));
             } else {

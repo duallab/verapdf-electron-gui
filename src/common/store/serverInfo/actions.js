@@ -32,6 +32,11 @@ export const updateServerStatus = () => async dispatch => {
         buildServiceInfo(getJobServiceInfo()),
         buildServiceInfo(getWorkerServiceInfo()),
     ]);
-    await extendWorkerServiceInfo(workerService);
     dispatch(setServerInfo({ fileService, jobService, workerService }));
+};
+
+export const updateWorkerServiceStatus = () => async dispatch => {
+    const workerService = await buildServiceInfo(getWorkerServiceInfo());
+    await extendWorkerServiceInfo(workerService);
+    dispatch(setServerInfo({ workerService }));
 };

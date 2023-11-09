@@ -4,8 +4,9 @@ import { getFile } from '../pdfFiles/selectors';
 import { deleteFile } from '../../services/pdfStorage';
 import { getDefaultProfileName } from '../validationProfiles/selectors';
 import { storeFile } from '../pdfFiles/actions';
+import { JOB_NEW_FILE, JOB_OLD_FILE } from '../constants';
 
-const { PUBLIC_URL } = process.env;
+const { PUBLIC_URL, REACT_APP_BASE_NAME } = process.env;
 
 export const finishAppStartup = createAction('APP_STARTUP_FINISH');
 
@@ -17,6 +18,7 @@ export const resetApp = createAction('APP_RESET');
 
 export const reset = () => async (dispatch, getState) => {
     const file = getFile(getState());
+    const fileName = sessionStorage.getItem(JOB_NEW_FILE);
     const profile = getDefaultProfileName(getState());
 
     // Reset redux state, this will clean it and show Loading view
@@ -29,6 +31,9 @@ export const reset = () => async (dispatch, getState) => {
 
     // Reset session storage
     sessionStorage.clear();
+
+    // Save old file
+    sessionStorage.setItem(JOB_OLD_FILE, fileName);
 
     // Redirect to start screen and hide Loading view
     window.location.replace(PUBLIC_URL);
@@ -48,10 +53,12 @@ export const resetOnFileUpload = file => async (dispatch, getState) => {
 
     await dispatch(storeFile(file));
 
-    // Redirect to start screen and hide Loading view
+    window.history.replaceState(null, '', REACT_APP_BASE_NAME);
     window.location.replace(PUBLIC_URL);
 };
 
 export const setPage = createAction('APP_PAGE_SET', page => page);
+
+export const setFileUploadMode = createAction('APP_FILE_UPLOAD_MODE', fileUploadMode => fileUploadMode);
 
 export const setNumPages = createAction('APP_NUM_PAGES_SET', numPages => numPages);

@@ -1,14 +1,17 @@
 import { createAction } from 'redux-actions';
 import { getFile, getFileId } from '../pdfFiles/selectors';
+import { getFileLink } from '../pdfLink/selectors';
 import { getJob, getJobId, getTaskErrorMessage, getTaskResultId, getTaskStatus } from './selectors';
 import * as JobService from '../../services/jobService';
 import * as FileService from '../../services/fileService';
-import { updatePdfFile } from '../pdfFiles/actions';
+import { updatePdfFile, storeFile } from '../pdfFiles/actions';
+import { uploadLinkAction } from '../pdfLink/actions';
 import { setResult } from './result/actions';
 import { lockApp, unlockApp } from '../application/actions';
 import { getProfile } from './settings/selectors';
-import { finishStep, startStep } from './progress/actions';
+import { cancelJob, finishStep, startStep } from './progress/actions';
 import { JOB_STATUS, TASK_STATUS } from '../constants';
+import { isFileUploadMode } from '../application/selectors';
 
 export const setJob = createAction('JOB_SET');
 
@@ -20,6 +23,7 @@ export const validate = (completedSteps = []) => async (dispatch, getState) => {
         await uploadPdfFile(dispatch, getState, completedSteps);
         await addTask(dispatch, getState, completedSteps);
         await startJob(dispatch, getState, completedSteps);
+        await waitToStart(dispatch, getState, completedSteps);
         await waitForComplete(dispatch, getState, completedSteps);
         await downloadValidationResult(dispatch, getState, completedSteps);
     } catch (error) {
@@ -39,13 +43,29 @@ export const loadValidationResult = async (dispatch, getState) => {
     if (taskStatus === TASK_STATUS.ERROR) {
         throw new Error(getTaskErrorMessage(getState()));
     }
-    const resultFileId = getTaskResultId(getState());
-    const validationResult = await FileService.getFileContent(resultFileId);
-    dispatch(
-        setResult(
-            validationResult.hasOwnProperty('validationResult') ? validationResult.validationResult : validationResult
-        )
-    );
+    if (taskStatus !== TASK_STATUS.CANCELLED) {
+        const resultFileId = getTaskResultId(getState());
+        const validationResult = await FileService.getFileContent(resultFileId);
+        dispatch(
+            setResult(
+                validationResult.hasOwnProperty('validationResult')
+                    ? validationResult.validationResult
+                    : validationResult
+            )
+        );
+    } else {
+        dispatch(setResult({ jobEndStatus: 'cancelled' }));
+    }
+};
+
+export const cancelValidation = () => async (dispatch, getState) => {
+    const jobId = getJobId(getState());
+    dispatch(cancelJob());
+    try {
+        await JobService.cancelJob(jobId);
+    } catch (error) {
+        console.error(error);
+    }
 };
 
 const createStep = (key, percentage = 0, stepFn) => async (dispatch, getState, completedSteps) => {
@@ -72,18 +92,28 @@ const createJob = createStep('JOB_CREATE', 10, async (dispatch, getState) => {
 });
 
 const uploadPdfFile = createStep('FILE_UPLOAD', 30, async (dispatch, getState) => {
-    const file = getFile(getState());
-    const fileDescriptor = await FileService.uploadFile(file);
-    dispatch(updatePdfFile(fileDescriptor));
+    if (isFileUploadMode(getState())) {
+        const file = getFile(getState());
+        const fileDescriptor = await FileService.uploadFile(file);
+        dispatch(updatePdfFile(fileDescriptor));
+    } else {
+        const link = getFileLink(getState());
+        uploadLinkAction(link);
+        const fileDescriptor = await FileService.uploadLink(link);
+        const blob = await FileService.getFileContent(fileDescriptor.id);
+        const file = new File([blob], fileDescriptor.fileName);
+        await dispatch(storeFile(file));
+        dispatch(updatePdfFile(fileDescriptor));
+    }
 });
 
 const addTask = createStep('JOB_UPDATE', 10, async (dispatch, getState) => {
     const fileId = getFileId(getState());
-    let job = {
+    const jobParams = {
         ...getJob(getState()),
-        tasks: [{ fileId }],
+        tasks: [{ fileId: fileId }],
     };
-    job = await JobService.updateJob(job);
+    const job = await JobService.updateJob(jobParams);
     dispatch(setJob(job));
 });
 
@@ -92,6 +122,36 @@ const startJob = createStep('JOB_EXECUTE', 10, async (dispatch, getState) => {
     const job = await JobService.executeJob(jobId);
     dispatch(setJob(job));
 });
+
+const waitToStart = createStep(
+    'JOB_WAITING',
+    10,
+    (dispatch, getState) =>
+        new Promise((resolve, reject) => {
+            const REFRESH_INTERVAL = 1000;
+            const checkStatus = () =>
+                setTimeout(async () => {
+                    const jobId = getJobId(getState());
+                    const job = await JobService.getJob(jobId);
+                    dispatch(setJob(job));
+                    if (job.status === JOB_STATUS.WAITING) {
+                        checkStatus();
+                    } else {
+                        if (
+                            job.status === JOB_STATUS.PROCESSING ||
+                            job.status === JOB_STATUS.CANCELLED ||
+                            getTaskStatus(getState()) === TASK_STATUS.FINISHED
+                        ) {
+                            resolve();
+                        } else {
+                            reject(new Error(getTaskErrorMessage(getState())));
+                        }
+                    }
+                }, REFRESH_INTERVAL);
+
+            checkStatus();
+        })
+);
 
 const waitForComplete = createStep(
     'JOB_COMPLETE',
@@ -103,12 +163,14 @@ const waitForComplete = createStep(
                 setTimeout(async () => {
                     const jobId = getJobId(getState());
                     const job = await JobService.getJob(jobId);
-
+                    dispatch(setJob(job));
                     if (job.status === JOB_STATUS.PROCESSING) {
                         checkStatus();
                     } else {
-                        dispatch(setJob(job));
-                        if (getTaskStatus(getState()) === TASK_STATUS.FINISHED) {
+                        if (
+                            getTaskStatus(getState()) === TASK_STATUS.FINISHED ||
+                            getTaskStatus(getState()) === TASK_STATUS.CANCELLED
+                        ) {
                             resolve();
                         } else {
                             reject(new Error(getTaskErrorMessage(getState())));
