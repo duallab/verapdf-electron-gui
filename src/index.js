@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
 import { v1 as uuidv1 } from 'uuid';
+import axios from 'axios';
 
 import { JOB_STATUS, TASK_STATUS } from './common/store/constants'
 
@@ -213,6 +214,30 @@ ipcMain.on('upload-file', (event, filePath) => {
     }
 });
 
+ipcMain.on('upload-file-link', async (event, url) => {
+    let arrayBuffer;
+    try {
+        const res = await axios(url, { responseType: 'arraybuffer' });
+        if (res.status !== 200 || res.headers['content-type'] !== 'application/pdf') {
+            event.sender.send('upload-file-link-result', { error: new Error('Error while extracting file from url.') });
+            return;
+        }
+        arrayBuffer = res.data;
+        const id = uuidv1();
+        const newFilePath = path.resolve(__dirname, '..', 'libs', `${id}.pdf`);
+        fs.writeFile(newFilePath, arrayBuffer, err => {
+            if (!err) {
+                file = { tempPath: newFilePath, realPath: url };
+                event.sender.send('upload-file-link-result', { file: { id } });
+            } else {
+                event.sender.send('upload-file-link-result', { error: new Error('Error while saving file on disk.') });
+            }
+        });
+    } catch (e) {
+        event.sender.send('upload-file-link-result', { error: new Error('Error while extracting file from url and saving it on disk.') });
+    }
+});
+
 ipcMain.on('upload-job', (event, j) => {
     if (typeof j === 'object' && job.id === j.id && job.profile === j.profile && j.tasks?.length > 0) {
         job = j;
@@ -293,12 +318,21 @@ ipcMain.on('execute-job', (event, id) => {
 });
 
 ipcMain.on('get-file-content', (event, id) => {
+    const filePath = path.resolve(__dirname, '..', 'libs', `${id}.pdf`);
     if (job.id === id) {
         if (job.fileContent) {                
             event.sender.send('get-file-content-result', { fileContent: job.fileContent });
         } else {
             event.sender.send('get-file-content-result', { error: new Error(job.errorMessage) });
         }
+    } else if (file.tempPath === filePath) {
+        fs.readFile(filePath, (err, data) => {
+            if (!err) {
+                event.sender.send('get-file-content-result', { file: data });
+            } else {
+                event.sender.send('get-file-content-result', { error: new Error('Can\'t find such file') });
+            }
+        });
     } else {
         event.sender.send('get-file-content-result', { error: new Error('Can\'t find such file content') });
     }

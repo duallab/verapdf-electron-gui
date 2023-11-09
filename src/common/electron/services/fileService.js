@@ -28,9 +28,38 @@ export const getFileContent = id => {
         ipcRenderer.once('get-file-content-result', (event, args) => {
             if (args.fileContent) {
                 resolve(args.fileContent);
+            } else if (args.file) {
+                resolve(new Blob([args.file]));
             } else {
                 reject(args.error);
             }
         });
     });
+};
+
+export const uploadLink = async url => {
+    ipcRenderer.send('upload-file-link', url);
+    return new Promise((resolve, reject) => {
+        ipcRenderer.once('upload-file-link-result', (event, args) => {
+            if (args.file) {
+                resolve(args.file);
+            } else {
+                reject(args.error);
+            }
+        });
+    });
+};
+
+export const isValidUrl = url => {
+    let newUrl;
+    try {
+        newUrl = new URL(url);
+    } catch (e) {
+        return false;
+    }
+    return (
+        (newUrl.protocol === 'http:' || newUrl.protocol === 'https:') &&
+        newUrl.pathname?.length > 5 &&
+        newUrl.pathname.slice(-4) === '.pdf'
+    );
 };

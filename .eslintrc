@@ -21,7 +21,8 @@
                 "tabWidth": 4
             }
         ],
-        "import/no-anonymous-default-export": ["error", { "allowObject": true }]
+        "import/no-anonymous-default-export": ["error", { "allowObject": true }],
+        "no-unused-expressions": "off"
     },
     "settings": {
         "import/resolver": {
