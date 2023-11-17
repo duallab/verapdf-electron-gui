@@ -60,3 +60,7 @@ export const executeJob = id => {
         });
     });
 };
+
+export const cancelJob = id => {
+    ipcRenderer.send('cancel-job', id);
+};

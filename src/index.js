@@ -40,6 +40,7 @@ const profilesPath = path.join(
 let job = {};
 let file = {};
 let width, height;
+let controller;
 
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
@@ -255,10 +256,12 @@ ipcMain.on('execute-job', (event, id) => {
             const constFile = { ...file };
             job.status = JOB_STATUS.PROCESSING;
             job.tasks[0].status = TASK_STATUS.PROCESSING;
+            controller = new AbortController();
+            const { signal } = controller;
             const reportData = spawn(
                 process.platform === 'win32' ? 'verapdf.bat' : './verapdf',
                 ['-p', job.profile, '--format', 'json', constFile.tempPath],
-                { cwd: path.resolve(__dirname, '..', 'libs/veraPDF') },
+                { cwd: path.resolve(__dirname, '..', 'libs/veraPDF'), signal },
             );
 
             reportData.stdout.on('data', data => {
@@ -298,11 +301,17 @@ ipcMain.on('execute-job', (event, id) => {
                 }
             });
             reportData.on('error', err => {
-                const errorMessage = err.message.replaceAll(constFile.tempPath, constFile.realPath);
-                fs.rm(constFile.tempPath, () => {});
-                job.status = JOB_STATUS.ERROR;
-                job.tasks[0].status = TASK_STATUS.ERROR;
-                job.tasks[0].errorMessage = errorMessage;
+                if (err.code === 'ABORT_ERR') {
+                    fs.rm(constFile.tempPath, () => {});
+                    job.status = JOB_STATUS.CANCELLED;
+                    job.tasks[0].status = TASK_STATUS.CANCELLED;
+                } else {
+                    const errorMessage = err.message.replaceAll(constFile.tempPath, constFile.realPath);
+                    fs.rm(constFile.tempPath, () => {});
+                    job.status = JOB_STATUS.ERROR;
+                    job.tasks[0].status = TASK_STATUS.ERROR;
+                    job.tasks[0].errorMessage = errorMessage;
+                }
             });
 
             event.sender.send('execute-job-result', { job });
@@ -341,4 +350,10 @@ ipcMain.on('get-file-content', (event, id) => {
 ipcMain.on('get-warning-message', (event) => {
     const warnings = job && job?.tasks?.length > 0 && job.tasks[0].warningMessage
     event.sender.send('get-warning-message-result', warnings);
+});
+
+ipcMain.on('cancel-job', () => {
+    if (controller) {
+        controller.abort();
+    }
 });

@@ -63,3 +63,7 @@ export const isValidUrl = url => {
         newUrl.pathname.slice(-4) === '.pdf'
     );
 };
+
+export const redirectToStartScreen = () => {
+    return false;
+};
