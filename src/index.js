@@ -5,32 +5,45 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import { v1 as uuidv1 } from 'uuid';
 import axios from 'axios';
+import UserAgent from 'user-agents';
 
 import { JOB_STATUS, TASK_STATUS } from './common/store/constants'
 
 const profilesNames = {
-    'WCAG-21-Complete.xml': {
-        humanReadableName: 'WCAG 2.1 (All)',
+    'WCAG-2-2-Complete.xml': {
+        humanReadableName: 'WCAG 2.2 Machine & Human (experimental)',
         profileIndex: 1,
     },
-    'PDFUA-1.xml': {
-        humanReadableName: 'PDF/UA-1 (Machine)',
-        profileIndex: 4,
-    },
-    'ISO-32005-Tagged.xml': {
-        humanReadableName: 'Tagged PDF',
-        profileIndex: 5,
-    },
-    'WCAG-21.xml': {
-        humanReadableName: 'WCAG 2.1 (Extra)',
+    'WCAG-2-2-Machine.xml': {
+        humanReadableName: 'WCAG 2.2 (Machine)',
         profileIndex: 2,
     },
-    'WCAG-21-Dev.xml': {
-        humanReadableName: 'WCAG 2.1 (DEV)',
+    'WCAG-2-2.xml': {
+        humanReadableName: 'WCAG 2.2 (Human)',
         profileIndex: 3,
+    },
+    'PDFUA-1.xml': {
+        humanReadableName: 'PDF/UA-1',
+        profileIndex: 4,
+    },
+    'PDFUA-2.xml': {
+        humanReadableName: 'PDF/UA-2',
+        profileIndex: 5,
+    },
+    'PDFUA-2-ISO32005.xml': {
+        humanReadableName: 'PDF/UA-2 & ISO 32005',
+        profileIndex: 6,
+    },
+    'ISO-32005-Tagged.xml': {
+        humanReadableName: 'ISO 32005',
+        profileIndex: 7,
     },
 }
 
+const axiosInstance = axios.create({
+    timeout: 5000,
+    headers: { 'User-Agent': new UserAgent().toString() },
+});
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const profilesPath = path.join(
     __dirname, 
@@ -39,8 +52,8 @@ const profilesPath = path.join(
 );
 let job = {};
 let file = {};
-let width, height;
 let controller;
+let width, height;
 
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
@@ -116,7 +129,7 @@ app.on('web-contents-created', (e, contents) => {
         return {action: 'deny'};
       })
     }
-  })
+});
 
 app.on('ready', () => {
     createWindow();
@@ -198,7 +211,10 @@ ipcMain.on('upload-file', (event, filePath) => {
                 fs.copyFile(filePath, newFilePath, err => {
                     if (!err) {
                         file = { tempPath: newFilePath, realPath: filePath };
-                        event.sender.send('upload-file-result', { file: { id } });
+                        event.sender.send(
+                            'upload-file-result',
+                            { file: { id, fileName: path.basename(filePath) } },
+                        );
                     } else {
                         event.sender.send(
                             'upload-file-result', 
@@ -218,7 +234,7 @@ ipcMain.on('upload-file', (event, filePath) => {
 ipcMain.on('upload-file-link', async (event, url) => {
     let arrayBuffer;
     try {
-        const res = await axios(url, { responseType: 'arraybuffer' });
+        const res = await axiosInstance.get(url, { responseType: 'arraybuffer' });
         if (res.status !== 200 || res.headers['content-type'] !== 'application/pdf') {
             event.sender.send('upload-file-link-result', { error: new Error('Error while extracting file from url.') });
             return;
@@ -229,7 +245,7 @@ ipcMain.on('upload-file-link', async (event, url) => {
         fs.writeFile(newFilePath, arrayBuffer, err => {
             if (!err) {
                 file = { tempPath: newFilePath, realPath: url };
-                event.sender.send('upload-file-link-result', { file: { id } });
+                event.sender.send('upload-file-link-result', { file: { id, fileName: url.split('/').slice(-1)[0] } });
             } else {
                 event.sender.send('upload-file-link-result', { error: new Error('Error while saving file on disk.') });
             }
@@ -269,14 +285,15 @@ ipcMain.on('execute-job', (event, id) => {
             });
             reportData.stdout.on('end', () => {
                 fs.rm(constFile.tempPath, () => {});
-                if (job.id === id) {                    
+                if (job.id === id && job.status !== JOB_STATUS.CANCELLED) {
                     reportText = reportText.replaceAll(constFile.tempPath, constFile.realPath);
                     try {
                         const jobs = JSON.parse(reportText).report.jobs;
                         if (jobs.length === 0 || !jobs[0].validationResult) {
                             job.status = JOB_STATUS.ERROR;
                             job.tasks[0].status = TASK_STATUS.ERROR;
-                            job.tasks[0].errorMessage = jobs[0]?.taskResult?.exception.message 
+                            job.tasks[0].errorMessage = jobs[0]?.taskException?.exception 
+                                || jobs[0]?.taskResult?.exception.message
                                 || 'No validation result';
                         } else {
                             job.status = JOB_STATUS.FINISHED;
@@ -352,8 +369,11 @@ ipcMain.on('get-warning-message', (event) => {
     event.sender.send('get-warning-message-result', warnings);
 });
 
-ipcMain.on('cancel-job', () => {
-    if (controller) {
+ipcMain.on('cancel-job', (event, id) => {
+    if (controller && job?.id === id) {
         controller.abort();
+        job.status = JOB_STATUS.CANCELLED;
+        job.tasks[0].status = TASK_STATUS.CANCELLED;
+        job.tasks[0].validationResultId = id;
     }
 });

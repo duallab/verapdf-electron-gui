@@ -89,7 +89,7 @@
       }
     ]
   },
-  "verapdf_version": "1.23.0",
+  "verapdf_version": "1.25.191",
   "babel": {
     "presets": [
       "@babel/env",
@@ -186,6 +186,7 @@
     "reselect": "4.0.0",
     "spark-md5": "^3.0.2",
     "use-resize-observer": "^9.1.0",
+    "user-agents": "^1.1.109",
     "uuid": "^8.3.2",
     "verapdf-js-viewer": "git+https://github.com/veraPDF/verapdf-js-viewer.git"
   }
