@@ -1,41 +1,24 @@
 import _ from 'lodash';
 
-const getContext = arr => {
-    let allContext = '';
-    _.map(arr, subArr => {
-        _.map(subArr, el => {
-            allContext += el.context;
+const TREEPATH = '/StructTreeRoot';
+const IdStringRegExp = new RegExp(/\(\d+ \d+ [^()[\]]+\)/g);
+
+const getIdStringsFromContext = (treeName, context) => {
+    if (`/${context.split('/').at(-1)}`.startsWith(TREEPATH)) {
+        return null;
+    }
+    const idStrings = (context.split(TREEPATH)[1].match(IdStringRegExp) || []).filter(
+        item => !item.includes(TREEPATH.slice(1))
+    );
+    return idStrings
+        .filter((idStr, index) => {
+            if (index === 0) return !idStr.includes(treeName);
+            return true;
+        })
+        .map(id => {
+            const parsedId = id.slice(1, -1).split(' ');
+            return `${parsedId[0]}:${parsedId[1]}`;
         });
-    });
-    return allContext;
-};
-
-const getStructureIds = arr => {
-    return Array.from(new Set(getContext(arr).match(/\(\d+ \d+ \S+ \S+ \S+\)/g)))
-        .filter(id => !id.includes('/'))
-        .map(id => id.slice(1, -1));
-};
-
-const getRoleMapList = arr => {
-    const roleMapList = _.map(getStructureIds(arr), id => {
-        const [key, value] = [id.split(' ').at(-1), id.split(' ').at(-2)];
-        return value.includes('SE') ? ['', ''] : [key, value];
-    });
-    return _.fromPairs(roleMapList);
-};
-
-const getTreeRoleNames = (tree, arr) => {
-    const dictionary = getRoleMapList(arr);
-    const setNodeRoleName = node => {
-        if (_.isNil(node)) return null;
-        const roleName = dictionary[node.name];
-        node.roleName = _.isNil(roleName) ? node.name : roleName;
-        if (!node?.children.length) return node;
-        if (!(node.children instanceof Array)) setNodeRoleName(node.children);
-        else _.map(node.children, child => setNodeRoleName(child));
-        return node;
-    };
-    return setNodeRoleName(tree);
 };
 
 const getTreeIds = (node, ids = []) => {
@@ -47,28 +30,34 @@ const getTreeIds = (node, ids = []) => {
     return ids;
 };
 
-const setRulesTreeIds = (treeName, rules) => {
-    const TREEPATH = '/StructTreeRoot';
+const setRulesTreeIds = (tree, rules) => {
     return rules.map(({ checks }) => {
         return checks.map(check => {
             if (check.context.includes(TREEPATH)) {
-                const idStrings = check.context
-                    .split(TREEPATH)[1]
-                    .match(/[^/]+/g)
-                    .filter((idStr, index) => {
-                        if (index === 1) return !idStr.includes(treeName) && !idStr.includes('{');
-                        return !idStr.includes('{');
-                    });
-                const treeId = idStrings
-                    .map(idStr => idStr.match(/\[\d+]/))
-                    .join('')
-                    .replaceAll('][', ':')
-                    .slice(1, -1);
+                const idStrings = getIdStringsFromContext(tree.name, check.context);
+                if (idStrings === null) {
+                    return { ...check, treeId: null };
+                }
+                const treeId = findIdByObjNumbers(tree, idStrings.reverse());
+                return { ...check, treeId: treeId };
+            } else if (check.context.includes('pages') && check.context.includes('annots')) {
+                const [pageIndex, annotIndex] = check.context.split('pages')[1].match(/\[\d+\]/g) || ['', ''];
+                const annotKey = `${pageIndex.slice(1, -1)}:${annotIndex.slice(1, -1)}`;
+                const treeId = tree.annotMap[annotKey] ?? null;
                 return { ...check, treeId: treeId };
             }
             return { ...check, treeId: null };
         });
     });
+};
+
+const findIdByObjNumbers = (node, pathArray) => {
+    if (!pathArray || !pathArray.length) return node.id;
+    const path = pathArray.pop();
+    const [num, gen] = path.split(':');
+    const nextNode = node.children.find(({ ref }) => ref.num === +num && ref.gen === +gen);
+    if (!nextNode) return null;
+    return findIdByObjNumbers(nextNode, pathArray);
 };
 
 const findNode = (arr, id) => {
@@ -84,4 +73,27 @@ const findNode = (arr, id) => {
     return [ruleIndex, checkIndex];
 };
 
-export { getTreeIds, getTreeRoleNames, setRulesTreeIds, findNode };
+/*
+ *  Returns a list of groups containing tagNames
+ *
+ *  @param tagsNames {string[]} of Tag names
+ *  @param errorTags {{ [group]: [{ name, description }] }} of Tag objects
+ *
+ *  @return availableGroups {string[]} of groups containing tagNames
+ */
+const getAvailableGroups = (tagsNames, errorTags) => {
+    if (!Array.isArray(tagsNames) || !tagsNames.length || _.isEmpty(errorTags)) return [];
+    const allGroups = _.keys(errorTags);
+    const availableGroups = [];
+
+    _.forEach(tagsNames, tagName => {
+        _.forEach(allGroups, group => {
+            if (errorTags[group].map(({ name }) => name).includes(tagName)) {
+                availableGroups.push(group);
+            }
+        });
+    });
+    return _.intersection(allGroups, availableGroups);
+};
+
+export { getTreeIds, setRulesTreeIds, findNode, getAvailableGroups };

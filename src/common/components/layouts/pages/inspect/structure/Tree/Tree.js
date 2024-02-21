@@ -58,7 +58,7 @@ function Tree({
         if (!_.isNil(selectedCheck)) {
             const ruleIndex = errorsMap[selectedCheck]?.ruleIndex;
             const checkIndex = errorsMap[selectedCheck]?.checkIndex;
-            if (!_.isNil(ruleIndex) && !_.isNil(checkIndex)) {
+            if (!_.isNil(ruleIndex) && !_.isNil(checkIndex) && !_.isEmpty(ruleSummaries)) {
                 const newNodeId = ruleSummaries[ruleIndex][checkIndex]?.treeId;
                 setSelectedNodeId(newNodeId);
             }
@@ -150,7 +150,9 @@ function Node({ node, style, tree }) {
             <button className="tree__item__icon" disabled={node.data?.final} onClick={handleIconClick}>
                 {tree.isOpen(node.id) ? <ExpandMoreIcon /> : <ChevronRightIcon />}
             </button>
-            <label className="tree__item__label">{roleMap ? node.data.roleName : node.data.name}</label>
+            <label className="tree__item__label">
+                {roleMap && node.data.roleName ? node.data.roleName : node.data.name}
+            </label>
         </div>
     );
 }

@@ -9,6 +9,7 @@ module.exports = {
       [path.resolve(__dirname, "src/common/services/profiles.js")]: path.resolve(__dirname, 'src/common/electron/services/profiles.js'),
       [path.resolve(__dirname, "src/common/services/workerService.js")]: path.resolve(__dirname, 'src/common/electron/services/workerService.js'),
       [path.resolve(__dirname, "src/common/components/layouts/pages/about/About.js")]: path.resolve(__dirname, 'src/common/electron/components/layouts/pages/about/About.js'),
+      [path.resolve(__dirname, "src/common/components/layouts/pages/privacyPolicy/PrivacyPolicy.js")]: path.resolve(__dirname, 'src/common/electron/components/layouts/pages/privacyPolicy/PrivacyPolicy.js'),
     }
   },
   module: {
