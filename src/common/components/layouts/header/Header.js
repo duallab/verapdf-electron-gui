@@ -1,14 +1,16 @@
 import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Link as MaterialLink } from '@material-ui/core';
+import classNames from 'classnames';
+import { Link as MaterialLink, Typography } from '@material-ui/core';
 import HelpOutline from '@material-ui/icons/HelpOutline';
 import PolicyIcon from '@material-ui/icons/Policy';
 
 import ResetButton from '../../shared/resetButton/ResetButton';
 import AppPages from '../../AppPages';
-import logo from './veraPDF-logo-400.png';
+
+import logo from './pdf4wcag_logo.svg';
+
 import './Header.scss';
-import classNames from 'classnames';
 
 function Header() {
     const location = useLocation();
@@ -34,6 +36,7 @@ function Header() {
                     className={classNames('app-link', 'about-link', { 'app-link_hidden': hideLinks })}
                 >
                     <HelpOutline />
+                    <Typography className="text-link">ABOUT</Typography>
                 </Link>
                 <Link
                     to={AppPages.PRIVACY_POLICY}
@@ -41,6 +44,7 @@ function Header() {
                     className={classNames('app-link', 'policy-link', { 'app-link_hidden': hideLinks })}
                 >
                     <PolicyIcon />
+                    <Typography className="text-link">PRIVACY POLICY</Typography>
                 </Link>
             </section>
         </header>

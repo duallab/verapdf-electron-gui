@@ -26,6 +26,7 @@ module.exports = {
               exclude: [
                 path.resolve(__dirname, 'node_modules/verapdf-js-viewer/node_modules/react-pdf/node_modules/pdfjs-dist'),
                 path.resolve(__dirname, 'node_modules/verapdf-js-viewer/node_modules/pdfjs-dist'),
+                path.resolve(__dirname, 'node_modules/verapdf-js-viewer/dist'),
                 path.resolve(__dirname, 'node_modules/pdfjs-dist'),
                 path.resolve(__dirname, 'node_modules/react-arborist')
               ]
@@ -34,7 +35,8 @@ module.exports = {
         use: {
           loader: 'babel-loader',
           options: {
-            presets: ['@babel/preset-env']
+            presets: ['@babel/preset-env'],
+            plugins: ['@babel/plugin-transform-optional-chaining']
           }
         }
       },

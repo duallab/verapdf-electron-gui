@@ -89,7 +89,7 @@
       }
     ]
   },
-  "verapdf_version": "1.25.207",
+  "verapdf_version": "1.25.213",
   "babel": {
     "presets": [
       "@babel/env",
@@ -128,6 +128,7 @@
     "build:win32": "yarn build --ia32 -c.nsis.artifactName=\"${productName}-${version}-(x86).${ext}\""
   },
   "devDependencies": {
+    "@babel/plugin-transform-optional-chaining": "^7.23.4",
     "@babel/preset-react": "7.17.12",
     "babel-eslint": "10.1.0",
     "babel-loader": "8.1.0",
