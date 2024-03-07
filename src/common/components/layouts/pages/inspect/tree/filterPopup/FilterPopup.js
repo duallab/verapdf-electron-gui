@@ -13,8 +13,7 @@ import MenuItem from '@material-ui/core/MenuItem';
 import FormControl from '@material-ui/core/FormControl';
 import Select from '@material-ui/core/Select';
 import Chip from '@material-ui/core/Chip';
-import SvgIcon from '@material-ui/core/SvgIcon';
-import { ReactComponent as DeSelect } from '../../../../../../../assets/icons/deSelect.svg';
+import DeSelect from '../../../../../../../assets/icons/deSelect.svg';
 
 import { TAGS_NAMES } from '../../constants';
 import errorTags from '../../validationErrorTags.json';
@@ -85,9 +84,7 @@ const FilterPopup = ({ groups, selectedTags, setSelectedTags, selectedGroup, set
                 </Tooltip>
                 <Tooltip title={CLEAR}>
                     <IconButton size="small" onClick={handleClear}>
-                        <SvgIcon>
-                            <DeSelect />
-                        </SvgIcon>
+                        <img src={DeSelect} alt="DeSelectIcon" />
                     </IconButton>
                 </Tooltip>
             </div>

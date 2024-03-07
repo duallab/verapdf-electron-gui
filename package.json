@@ -11,7 +11,7 @@
     "email": "info@duallab.com"
   },
   "electronWebpack": {
-    "title": "veraPDF Electron",
+    "title": "PDF4WCAG Accessibility Checker",
     "main": {
       "sourceDirectory": "src"
     },
@@ -35,7 +35,7 @@
     ]
   },
   "build": {
-    "productName": "veraPDF Electron",
+    "productName": "PDF4WCAG Accessibility Checker",
     "compression": "maximum",
     "appId": "verapdf-electron",
     "target": "NSIS",
