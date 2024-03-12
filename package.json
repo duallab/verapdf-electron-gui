@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "engines": {
-    "node": ">= 16"
+    "node": "= 16"
   },
   "homepage": "https://github.com/duallab/verapdf-electron",
   "author": {
@@ -11,7 +11,7 @@
     "email": "info@duallab.com"
   },
   "electronWebpack": {
-    "title": "veraPDF Electron",
+    "title": "PDF4WCAG Accessibility Checker",
     "main": {
       "sourceDirectory": "src"
     },
@@ -35,7 +35,7 @@
     ]
   },
   "build": {
-    "productName": "veraPDF Electron",
+    "productName": "PDF4WCAG Accessibility Checker",
     "compression": "maximum",
     "appId": "verapdf-electron",
     "target": "NSIS",
@@ -89,7 +89,7 @@
       }
     ]
   },
-  "verapdf_version": "1.25.191",
+  "verapdf_version": "1.25.213",
   "babel": {
     "presets": [
       "@babel/env",
@@ -122,19 +122,21 @@
     "set-env": "yarn update-version && yarn update-date",
     "start": "yarn set-env && electron-webpack dev",
     "compile": "electron-webpack",
-    "build": "yarn set-env && yarn compile && electron-builder",
+    "build": "yarn set-env && yarn compile && dotenv -e ./.env.secret -- electron-builder",
     "build:linux": "yarn build --linux",
     "build:mac": "yarn build --mac",
     "build:win32": "yarn build --ia32 -c.nsis.artifactName=\"${productName}-${version}-(x86).${ext}\""
   },
   "devDependencies": {
+    "@babel/plugin-transform-optional-chaining": "^7.23.4",
     "@babel/preset-react": "7.17.12",
     "babel-eslint": "10.1.0",
     "babel-loader": "8.1.0",
     "copy-webpack-plugin": "6.0.1",
     "del-cli": "^4.0.1",
+    "dotenv-cli": "^7.3.0",
     "electron": "20.1.1",
-    "electron-builder": "23.3.3",
+    "electron-builder": "^22.14.13",
     "electron-webpack": "2.8.2",
     "electron-webpack-eslint": "5.1.0",
     "enzyme": "3.11.0",

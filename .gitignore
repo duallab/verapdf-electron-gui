@@ -37,6 +37,7 @@ hs_err_pid*
 # misc
 .DS_Store
 .env.local
+.env.secret
 .env.development.local
 .env.test.local
 .env.production.local

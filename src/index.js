@@ -11,34 +11,43 @@ import { JOB_STATUS, TASK_STATUS } from './common/store/constants'
 
 const profilesNames = {
     'WCAG-2-2-Complete.xml': {
+        profileName: 'WCAG_2_2_COMPLETE',
         humanReadableName: 'WCAG 2.2 Machine & Human (experimental)',
         profileIndex: 1,
     },
     'WCAG-2-2-Machine.xml': {
+        profileName: 'WCAG_2_2_MACHINE',
         humanReadableName: 'WCAG 2.2 (Machine)',
         profileIndex: 2,
     },
     'WCAG-2-2.xml': {
+        profileName: 'WCAG_2_2_HUMAN',
         humanReadableName: 'WCAG 2.2 (Human)',
         profileIndex: 3,
     },
     'PDFUA-1.xml': {
+        profileName: 'PDFUA_1',
         humanReadableName: 'PDF/UA-1',
         profileIndex: 4,
     },
     'PDFUA-2.xml': {
+        profileName: 'PDFUA_2',
         humanReadableName: 'PDF/UA-2',
         profileIndex: 5,
     },
     'PDFUA-2-ISO32005.xml': {
+        profileName: 'PDFUA_2_TAGGED_PDF',
         humanReadableName: 'PDF/UA-2 & ISO 32005',
         profileIndex: 6,
     },
     'ISO-32005-Tagged.xml': {
+        profileName: 'TAGGED_PDF',
         humanReadableName: 'ISO 32005',
         profileIndex: 7,
     },
 }
+
+const progressRegExp = /Progress: \d+ checks \/ \d+ failed \/ \d+ processed objects \/ \d+ in stack\./g;
 
 const axiosInstance = axios.create({
     timeout: 5000,
@@ -162,7 +171,7 @@ ipcMain.on('get-profiles', event => {
                         profiles.push({
                             humanReadableName: p.humanReadableName,
                             profileIndex: p.profileIndex,
-                            profileName: path.resolve(profilesPath, f),
+                            profileName: p.profileName,
                             enabled: true,
                         });
                     }
@@ -186,13 +195,15 @@ ipcMain.on('create-job', (event, args) => {
         if (error) {
             event.sender.send('create-job-result', { error });
         } else {
-            const files = result.filter(r => r.isFile()).map(r => r.name);
-            if (args && typeof args?.profile === 'string' && files.find(f => path.basename(args.profile, '.xml') === path.basename(f, '.xml'))) {
+            const files = result.filter(r => r.isFile()).map(r => path.basename(r.name));
+            const profileName = args?.profile && files.find(f => profilesNames[f]?.profileName === args.profile);
+            if (profileName) {
                 job = {
                     id: uuidv1(),
-                    profile: args.profile,
+                    profile: path.resolve(profilesPath, profileName),
                     status: JOB_STATUS.CREATED,
                     tasks: null,
+                    progress: null,
                 };
                 event.sender.send('create-job-result', { job });
             } else {
@@ -268,18 +279,18 @@ ipcMain.on('upload-job', (event, j) => {
 ipcMain.on('execute-job', (event, id) => {
     try {
         if (job.id === id && job.tasks[0].fileId === path.basename(file.tempPath, '.pdf')) {
-            let reportText = '', errorText = '';
+            let reportText = '', progressText = '';
             const constFile = { ...file };
             job.status = JOB_STATUS.PROCESSING;
             job.tasks[0].status = TASK_STATUS.PROCESSING;
+            job.progress = 'Progress: 0 checks, 0 failed, 0 processed objects, 0 in stack.'
             controller = new AbortController();
             const { signal } = controller;
             const reportData = spawn(
                 process.platform === 'win32' ? 'verapdf.bat' : './verapdf',
-                ['-p', job.profile, '--format', 'json', constFile.tempPath],
+                ['-p', job.profile, '--progress', 'true', '--format', 'json', constFile.tempPath],
                 { cwd: path.resolve(__dirname, '..', 'libs/veraPDF'), signal },
             );
-
             reportData.stdout.on('data', data => {
                 reportText += (data ?? '').toString();
             });
@@ -292,7 +303,7 @@ ipcMain.on('execute-job', (event, id) => {
                         if (jobs.length === 0 || !jobs[0].validationResult) {
                             job.status = JOB_STATUS.ERROR;
                             job.tasks[0].status = TASK_STATUS.ERROR;
-                            job.tasks[0].errorMessage = jobs[0]?.taskException?.exception 
+                            job.tasks[0].errorMessage = jobs[0]?.taskException?.exception
                                 || jobs[0]?.taskResult?.exception.message
                                 || 'No validation result';
                         } else {
@@ -309,13 +320,12 @@ ipcMain.on('execute-job', (event, id) => {
                 }
             });
             reportData.stderr.on('data', data => {
-                errorText += (data ?? '').toString();
+                progressText += (data ?? '').toString();
+                const message = progressText.match(progressRegExp)?.pop();
+                if (message && job.id === id) job.progress = message;
             });
             reportData.stderr.on('end', () => {
-                if (job.id === id) {
-                    errorText = errorText.replaceAll(constFile.tempPath, constFile.realPath);
-                    job.tasks[0].warningMessage = errorText;
-                }
+                if (job.id === id) job.progress = null;
             });
             reportData.on('error', err => {
                 if (err.code === 'ABORT_ERR') {

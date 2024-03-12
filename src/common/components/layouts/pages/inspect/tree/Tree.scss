@@ -4,11 +4,17 @@
   background: $bg-color--primary;
   box-shadow: $box-shadow--basic;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 
   &__list {
-    .rule-item {
+    height: 100%;
+
+    .group-item {
       padding: 2px 2px 2px 8px;
+    }
+
+    .rule-item {
+      padding: 2px 2px 2px 16px;
       display: flex;
 
       &__content {
@@ -27,6 +33,10 @@
           white-space: nowrap;
           margin-right: 5px;
           font-size: .9rem;
+
+          &::first-letter {
+            text-transform: capitalize;
+          }
         }
 
         &_empty {
@@ -67,7 +77,7 @@
     }
 
     .check-item {
-      padding: 2px 2px 2px 30px;
+      padding: 2px 2px 2px 40px;
 
       &.Mui-selected {
         background-color: rgba(0, 0, 0, 0.4);
@@ -76,6 +86,11 @@
       &_grouped {
         background-color: rgba(0, 0, 0, 0.08);
       }
+    }
+
+    &__item {
+      height: calc(100% - 48px);
+      overflow: auto;
     }
   }
 
@@ -92,9 +107,12 @@
 #summary-tree-subheader {
   display: flex;
   align-items: center;
+  overflow: auto;
   font-weight: $font-weight-bold;
+  white-space: nowrap;
+  scrollbar-width: none;
 
-  span:first-of-type {
+  button:first-of-type {
     margin-left: auto;
   }
 }

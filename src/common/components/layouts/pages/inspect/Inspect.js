@@ -8,28 +8,33 @@ import _ from 'lodash';
 import AppPages from '../../../AppPages';
 import { JOB_STATUS, TASK_STATUS } from '../../../../store/constants';
 import { WARNING_MESSAGES } from '../../../../services/constants';
-import { getTreeRoleNames, getTreeIds, setRulesTreeIds } from '../../../../services/treeService';
+import { getTreeIds, setRulesTreeIds, getAvailableGroups } from '../../../../services/treeService';
 import { lockApp, resetOnFileUpload, unlockApp } from '../../../../store/application/actions';
 import { getJobStatus, getTaskStatus } from '../../../../store/job/selectors';
-import { getRuleSummaries } from '../../../../store/job/result/selectors';
+import { getRuleSummaries, getTags } from '../../../../store/job/result/selectors';
 import Toolbar from './toolbar/Toolbar';
 import Tree from './tree/Tree';
 import PdfDocument from './pdfDocument/PdfDocument';
 import Structure from './structure/Structure';
 import DropzoneWrapper from '../upload/dropzoneWrapper/DropzoneWrapper';
 
+import errorTags from './validationErrorTags.json';
+
 import './Inspect.scss';
 
 const UNSELECTED = -1;
 
-function Inspect({ jobStatus, taskStatus, ruleSummaries, lockApp, unlockApp, onFileDrop }) {
+function Inspect({ tagsNames, jobStatus, taskStatus, ruleSummaries, lockApp, unlockApp, onFileDrop }) {
     const { id: jobId } = useParams();
     const [pdfName, setPdfName] = useState('');
     const [selectedCheck, setSelectedCheck] = useState(null);
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [expandedRules, setExpandedRules] = useState(new Array(ruleSummaries.length).fill(UNSELECTED));
+    const [expandedGroups, setExpandedGroups] = useState([]);
+    const [selectedGroup, setSelectedGroup] = useState(() => getAvailableGroups(tagsNames, errorTags)[0]);
     const [expandedNodes, setExpandedNodes] = useState([]);
     const [warningMessage, setWarningMessage] = useState(null);
+    const [ruleSummariesFiltered, setRuleSummariesFiltered] = useState(ruleSummaries);
     const [errorsMap, setErrorsMap] = useState({});
     const [scale, setScale] = useState('1');
     const [isTreeShow, setIsTreeShow] = useState(false);
@@ -60,22 +65,29 @@ function Inspect({ jobStatus, taskStatus, ruleSummaries, lockApp, unlockApp, onF
     const onWarning = useCallback(warningCode => {
         setWarningMessage(WARNING_MESSAGES[warningCode]);
     }, []);
+    const changeExpanded = useCallback((expanded, index, closeIfExists) => {
+        const copyExpanded = _.clone(expanded);
+        expanded.includes(index) && closeIfExists
+            ? copyExpanded.splice(index, 1, UNSELECTED)
+            : copyExpanded.splice(index, 1, index);
+        return copyExpanded;
+    }, []);
     const onExpandRule = useCallback(
         (index, closeIfExists = true) => {
-            const copyExpandedRule = _.clone(expandedRules);
-            expandedRules.includes(index) && closeIfExists
-                ? copyExpandedRule.splice(index, 1, UNSELECTED)
-                : copyExpandedRule.splice(index, 1, index);
-            return setExpandedRules(copyExpandedRule);
+            return setExpandedRules(changeExpanded(expandedRules, index, closeIfExists));
         },
-        [expandedRules, setExpandedRules]
+        [changeExpanded, expandedRules, setExpandedRules]
+    );
+    const onExpandGroup = useCallback(
+        (index, closeIfExists = true) => {
+            return setExpandedGroups(changeExpanded(expandedGroups, index, closeIfExists));
+        },
+        [changeExpanded, expandedGroups, setExpandedGroups]
     );
     const initTree = useCallback(
         tree => {
-            const ruleSummariesWithTreeIds = setRulesTreeIds(tree.name, ruleSummaries);
-            const treeWithRoleNames = getTreeRoleNames(tree, ruleSummariesWithTreeIds);
-            const ids = getTreeIds(tree);
-            setTreeData({ tree: treeWithRoleNames, ids: ids, ruleSummaries: ruleSummariesWithTreeIds });
+            const ruleSummariesWithTreeIds = setRulesTreeIds(tree, ruleSummaries);
+            setTreeData({ tree: tree, ids: getTreeIds(tree), ruleSummaries: ruleSummariesWithTreeIds });
         },
         [ruleSummaries]
     );
@@ -96,6 +108,16 @@ function Inspect({ jobStatus, taskStatus, ruleSummaries, lockApp, unlockApp, onF
             setExpandedNodes(initialExpandState);
         }
     }, [treeData, initialExpandState]);
+    useEffect(() => {
+        setExpandedGroups(Array.from(Array(errorTags[selectedGroup].length + 1).keys()));
+    }, [selectedGroup]);
+    useEffect(() => {
+        if (!_.isNil(treeData.tree)) {
+            const ruleSummariesWithTreeIds = setRulesTreeIds(treeData.tree, ruleSummariesFiltered);
+            setTreeData(prev => ({ ...prev, ruleSummaries: ruleSummariesWithTreeIds }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ruleSummariesFiltered]);
 
     if (jobStatus === JOB_STATUS.NOT_FOUND) {
         return <Redirect to={AppPages.NOT_FOUND} />;
@@ -116,7 +138,14 @@ function Inspect({ jobStatus, taskStatus, ruleSummaries, lockApp, unlockApp, onF
                     selectedCheck={selectedCheck}
                     setSelectedCheck={setSelectedCheck}
                     expandedRules={expandedRules}
+                    selectedGroup={selectedGroup}
+                    setSelectedGroup={setSelectedGroup}
+                    expandedGroups={expandedGroups}
+                    setExpandedGroups={setExpandedGroups}
                     onExpandRule={onExpandRule}
+                    onExpandGroup={onExpandGroup}
+                    ruleSummariesFiltered={ruleSummariesFiltered}
+                    setRuleSummariesFiltered={setRuleSummariesFiltered}
                     errorsMap={errorsMap}
                 />
                 <PdfDocument
@@ -132,6 +161,7 @@ function Inspect({ jobStatus, taskStatus, ruleSummaries, lockApp, unlockApp, onF
                     onDocumentReady={onDocumentReady}
                     onExpandRule={onExpandRule}
                     initTree={initTree}
+                    ruleSummariesFiltered={ruleSummariesFiltered}
                     scale={scale}
                 />
                 <Structure
@@ -163,6 +193,7 @@ const SummaryInterface = PropTypes.shape({
 });
 
 Inspect.propTypes = {
+    tagsNames: PropTypes.arrayOf(PropTypes.string),
     jobStatus: PropTypes.oneOf(_.values(JOB_STATUS)).isRequired,
     taskStatus: PropTypes.oneOf(_.values(TASK_STATUS)),
     ruleSummaries: PropTypes.arrayOf(SummaryInterface).isRequired,
@@ -173,6 +204,7 @@ Inspect.propTypes = {
 
 const mapStateToProps = state => {
     return {
+        tagsNames: getTags(state),
         jobStatus: getJobStatus(state),
         taskStatus: getTaskStatus(state),
         ruleSummaries: getRuleSummaries(state),
